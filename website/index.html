@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CareSync -Doctor Dashboard</title>
+    <title>Care-Sync - Doctor Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
     <style>
         :root {
@@ -119,7 +119,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>Doctor Dashboard</h1>
+        <h1>CareSync - Doctor Dashboard</h1>
     </div>
 
     <div class="content">
@@ -167,27 +167,27 @@
     <script>
         // Dummy data
         const dummyPatients = [
-            { id: "1", name: "John Doe" },
-            { id: "2", name: "Jane Smith" },
-            { id: "3", name: "Bob Johnson" }
+            { id: "1", name: "Collins Nyaigoti" },
+            { id: "2", name: "Newton Muraguri" },
+            { id: "3", name: "Daniel Brian" }
         ];
 
         const dummyData = {
             "1": {
                 bloodPressure: [120, 122, 118, 121, 119, 123, 120],
-                bloodOxygen: [98, 97, 98, 99, 97, 98, 98],
+                oxygenLevel: [98, 97, 98, 99, 97, 98, 98],
                 steps: [5000, 6000, 4500, 7000, 5500, 6500, 5000],
                 riskScore: 25
             },
             "2": {
                 bloodPressure: [130, 128, 132, 129, 131, 127, 130],
-                bloodOxygen: [96, 97, 95, 96, 97, 96, 97],
+                oxygenLevel: [96, 97, 95, 96, 97, 96, 97],
                 steps: [4000, 4500, 3800, 4200, 4100, 4300, 4000],
                 riskScore: 55
             },
             "3": {
                 bloodPressure: [140, 138, 142, 141, 139, 143, 140],
-                bloodOxygen: [94, 95, 93, 94, 95, 94, 95],
+                oxygenLevel: [94, 95, 93, 94, 95, 94, 95],
                 steps: [3000, 3200, 2800, 3100, 3000, 3300, 3000],
                 riskScore: 85
             }
@@ -195,17 +195,24 @@
 
         const dummyMeetings = {
             "1": [
-                { date: "2024-10-25", time: "10:00 AM", type: "In-person" },
-                { date: "2024-11-05", time: "2:00 PM", type: "virtual", link: "https://example.com/meeting" }
+                { date: "25-10-2024", time: "10:00 AM", type: "In-person" },
+                { date: "05-11-2024", time: "2:00 PM", type: "virtual", link: "https://example.com/meeting" }
             ],
             "2": [
-                { date: "2024-10-28", time: "11:30 AM", type: "In-person" },
-                { date: "2024-11-10", time: "3:30 PM", type: "virtual", link: "https://example.com/meeting" }
+                { date: "28-10-2024", time: "11:30 AM", type: "In-person" },
+                { date: "10-11-2024", time: "3:30 PM", type: "virtual", link: "https://example.com/meeting" }
             ],
             "3": [
-                { date: "2024-10-30", time: "9:00 AM", type: "In-person" },
-                { date: "2024-11-15", time: "1:00 PM", type: "virtual", link: "https://example.com/meeting" }
+                { date: "30-10-2024", time: "9:00 AM", type: "In-person" },
+                { date: "15-11-2024", time: "1:00 PM", type: "virtual", link: "https://example.com/meeting" }
             ]
+        };
+
+        // Store chart instances
+        const charts = {
+            bpChart: null,
+            boChart: null,
+            stepsChart: null
         };
 
         // Populate patient select
@@ -230,33 +237,39 @@
         function updateCharts(patientId) {
             const data = dummyData[patientId];
             updateChart('bpChart', 'Blood Pressure', data.bloodPressure);
-            updateChart('boChart', 'Blood Oxygen', data.bloodOxygen);
+            updateChart('boChart', 'Oxygen Level', data.oxygenLevel);
             updateChart('stepsChart', 'Steps', data.steps);
         }
 
         // Helper function to update a single chart
         function updateChart(chartId, label, data) {
             const ctx = document.getElementById(chartId).getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.map((_, index) => index + 1),
-                    datasets: [{
-                        label: label,
-                        data: data,
-                        borderColor: 'rgb(75, 192, 192)',
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true
+            
+            if (charts[chartId]) {
+                charts[chartId].data.datasets[0].data = data;
+                charts[chartId].update();
+            } else {
+                charts[chartId] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map((_, index) => index + 1),
+                        datasets: [{
+                            label: label,
+                            data: data,
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
         }
 
         // Update risk prediction
@@ -309,7 +322,18 @@
         });
 
         // Initialize the dashboard
-        populatePatientSelect();
+        function initializeDashboard() {
+            populatePatientSelect();
+            // Set the first patient as selected and update the dashboard
+            const patientSelect = document.getElementById("patientSelect");
+            if (patientSelect.options.length > 1) {
+                patientSelect.selectedIndex = 1; // Select the first patient (index 1, as index 0 is the default "Select a patient" option)
+                updateDashboard(patientSelect.value);
+            }
+        }
+
+        // Call initializeDashboard when the page loads
+        window.onload = initializeDashboard;
     </script>
 </body>
 </html>
