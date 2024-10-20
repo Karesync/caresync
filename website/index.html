@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareSync -Doctor Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --background-color: #ecf0f1;
+            --card-background: #ffffff;
+            --text-color: #333333;
+        }
+
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        .header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .content {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--card-background);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h2 {
+            color: var(--secondary-color);
+            margin-top: 0;
+            font-size: 18px;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid var(--secondary-color);
+            border-radius: 4px;
+            font-size: 16px;
+            background-color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .risk-meter {
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(to right, #2ecc71, #f1c40f, #e74c3c);
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .risk-indicator {
+            width: 10px;
+            height: 20px;
+            background-color: var(--primary-color);
+            position: relative;
+            transition: left 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Doctor Dashboard</h1>
+    </div>
+
+    <div class="content">
+        <select id="patientSelect">
+            <option value="">Select a patient</option>
+        </select>
+
+        <div class="container">
+            <div class="card">
+                <h2>Blood Pressure</h2>
+                <canvas id="bpChart"></canvas>
+            </div>
+
+            <div class="card">
+                <h2>Blood Oxygen</h2>
+                <canvas id="boChart"></canvas>
+            </div>
+
+            <div class="card">
+                <h2>Steps</h2>
+                <canvas id="stepsChart"></canvas>
+            </div>
+
+            <div class="card">
+                <h2>Predictions</h2>
+                <p>Risk Level: <span id="riskLevel"></span></p>
+                <div class="risk-meter">
+                    <div id="riskIndicator" class="risk-indicator"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Scheduled Meetings</h2>
+                <table id="meetingsTable">
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Type</th>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dummy data
+        const dummyPatients = [
+            { id: "1", name: "John Doe" },
+            { id: "2", name: "Jane Smith" },
+            { id: "3", name: "Bob Johnson" }
+        ];
+
+        const dummyData = {
+            "1": {
+                bloodPressure: [120, 122, 118, 121, 119, 123, 120],
+                bloodOxygen: [98, 97, 98, 99, 97, 98, 98],
+                steps: [5000, 6000, 4500, 7000, 5500, 6500, 5000],
+                riskScore: 25
+            },
+            "2": {
+                bloodPressure: [130, 128, 132, 129, 131, 127, 130],
+                bloodOxygen: [96, 97, 95, 96, 97, 96, 97],
+                steps: [4000, 4500, 3800, 4200, 4100, 4300, 4000],
+                riskScore: 55
+            },
+            "3": {
+                bloodPressure: [140, 138, 142, 141, 139, 143, 140],
+                bloodOxygen: [94, 95, 93, 94, 95, 94, 95],
+                steps: [3000, 3200, 2800, 3100, 3000, 3300, 3000],
+                riskScore: 85
+            }
+        };
+
+        const dummyMeetings = {
+            "1": [
+                { date: "2024-10-25", time: "10:00 AM", type: "In-person" },
+                { date: "2024-11-05", time: "2:00 PM", type: "virtual", link: "https://example.com/meeting" }
+            ],
+            "2": [
+                { date: "2024-10-28", time: "11:30 AM", type: "In-person" },
+                { date: "2024-11-10", time: "3:30 PM", type: "virtual", link: "https://example.com/meeting" }
+            ],
+            "3": [
+                { date: "2024-10-30", time: "9:00 AM", type: "In-person" },
+                { date: "2024-11-15", time: "1:00 PM", type: "virtual", link: "https://example.com/meeting" }
+            ]
+        };
+
+        // Populate patient select
+        function populatePatientSelect() {
+            const select = document.getElementById("patientSelect");
+            dummyPatients.forEach((patient) => {
+                const option = document.createElement("option");
+                option.value = patient.id;
+                option.textContent = patient.name;
+                select.appendChild(option);
+            });
+        }
+
+        // Update dashboard with patient data
+        function updateDashboard(patientId) {
+            updateCharts(patientId);
+            updateRiskPrediction(patientId);
+            updateMeetings(patientId);
+        }
+
+        // Update charts with patient data
+        function updateCharts(patientId) {
+            const data = dummyData[patientId];
+            updateChart('bpChart', 'Blood Pressure', data.bloodPressure);
+            updateChart('boChart', 'Blood Oxygen', data.bloodOxygen);
+            updateChart('stepsChart', 'Steps', data.steps);
+        }
+
+        // Helper function to update a single chart
+        function updateChart(chartId, label, data) {
+            const ctx = document.getElementById(chartId).getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map((_, index) => index + 1),
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update risk prediction
+        function updateRiskPrediction(patientId) {
+            const riskScore = dummyData[patientId].riskScore;
+            const riskLevel = document.getElementById("riskLevel");
+            const riskIndicator = document.getElementById("riskIndicator");
+
+            if (riskScore < 30) {
+                riskLevel.textContent = "Low Risk";
+            } else if (riskScore < 70) {
+                riskLevel.textContent = "Medium Risk";
+            } else {
+                riskLevel.textContent = "High Risk";
+            }
+            riskIndicator.style.left = `${riskScore}%`;
+        }
+
+        // Update meetings table
+        function updateMeetings(patientId) {
+            const table = document.getElementById("meetingsTable");
+            // Clear existing rows
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+
+            dummyMeetings[patientId].forEach((meeting) => {
+                const row = table.insertRow();
+                row.insertCell().textContent = meeting.date;
+                row.insertCell().textContent = meeting.time;
+                const typeCell = row.insertCell();
+                if (meeting.type === "virtual") {
+                    const link = document.createElement("a");
+                    link.href = meeting.link;
+                    link.textContent = "Virtual Meeting";
+                    link.target = "_blank";
+                    typeCell.appendChild(link);
+                } else {
+                    typeCell.textContent = meeting.type;
+                }
+            });
+        }
+
+        // Event listener for patient selection
+        document.getElementById("patientSelect").addEventListener("change", (event) => {
+            const patientId = event.target.value;
+            if (patientId) {
+                updateDashboard(patientId);
+            }
+        });
+
+        // Initialize the dashboard
+        populatePatientSelect();
+    </script>
+</body>
+</html>
